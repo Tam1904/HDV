@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoGeneratorSettingsState">
+    <option name="ignoredFields">
+      <set>
+        <option value="" />
+      </set>
+    </option>
+    <option name="moduleName" value="message-gateway" />
+    <option name="moduleNameToSettings">
+      <map>
+        <entry key="message-gateway">
+          <value>
+            <ModuleSettings>
+              <option name="controllerParentDirectory" value="$PROJECT_DIR$/message-gateway/src/main/java" />
+              <option name="dtoParentDirectory" value="$PROJECT_DIR$/message-gateway/src/main/java" />
+              <option name="entityPackageName" value="com.sfin.message.messagegateway.repository.entity" />
+              <option name="entityParentDirectory" value="$PROJECT_DIR$/message-gateway/src/main/java" />
+              <option name="mapperXmlParentDirectory" value="E:\Inteliji\sshop-platform-cms-be\message-gateway\src\main\resources" />
+              <option name="repositoryPackageName" value="com.sfin.message.messagegateway.repository" />
+              <option name="repositoryParentDirectory" value="$PROJECT_DIR$/message-gateway/src/main/java" />
+              <option name="serviceParentDirectory" value="$PROJECT_DIR$/message-gateway/src/main/java" />
+              <option name="voParentDirectory" value="$PROJECT_DIR$/message-gateway/src/main/java" />
+            </ModuleSettings>
+          </value>
+        </entry>
+        <entry key="sshop-platform-cms-be">
+          <value>
+            <ModuleSettings>
+              <option name="controllerParentDirectory" value="E:\Inteliji\sshop-platform-cms-be\src\main\java" />
+              <option name="dtoParentDirectory" value="E:\Inteliji\sshop-platform-cms-be\src\main\java" />
+              <option name="entityPackageName" value="com.sfin.message.messagegateway.repository.entity" />
+              <option name="entityParentDirectory" value="E:\Inteliji\sshop-platform-cms-be\src\main\java" />
+              <option name="mapperXmlParentDirectory" value="E:\Inteliji\sshop-platform-cms-be\src\main\resources" />
+              <option name="repositoryPackageName" value="com.sfin.message.messagegateway.repository" />
+              <option name="repositoryParentDirectory" value="E:\Inteliji\sshop-platform-cms-be\src\main\java" />
+              <option name="serviceParentDirectory" value="E:\Inteliji\sshop-platform-cms-be\src\main\java" />
+              <option name="voParentDirectory" value="E:\Inteliji\sshop-platform-cms-be\src\main\java" />
+            </ModuleSettings>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
