@@ -8,7 +8,6 @@ import org.apache.logging.log4j.ThreadContext;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
-import com.sfin.eplaform.commons.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -30,7 +29,7 @@ public class GatewayInterceptor implements HandlerInterceptor {
 
     @Override
     public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
-        Long startTime = Long.valueOf(request.getHeader(Constants.HEADER.REQUEST_ID_KEY));
+        Long startTime = (Long) request.getAttribute(Constants.HEADER.REQUEST_ID_KEY);
         Long processTime = System.currentTimeMillis() - startTime;
         log.info("========= End process request [{}]:[{}] with [{}]. Processing time [{}]", request.getMethod(), request.getServletPath(), response.getStatus(), processTime);
     }
@@ -42,7 +41,7 @@ public class GatewayInterceptor implements HandlerInterceptor {
         String phone  = request.getHeader(Constants.HEADER.CUSTOMER_PHONE);
         String token = request.getHeader(Constants.HEADER.CUSTOMER_TOKEN);
          Payload payload = new Payload();
-         if(StringUtils.isBlank(userId)){
+         if(!StringUtils.isBlank(userId)){
              payload.setCustomerId(Long.valueOf(userId));
              payload.setPhone(phone);
              payload.setToken(token);

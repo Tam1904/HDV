@@ -1,8 +1,12 @@
 package com.sfin.message.messagegateway.service;
 
+import com.sfin.message.messagegateway.repository.entity.HistorySendMessage;
 import com.sfin.message.messagegateway.repository.entity.ShopZaloConfigEntity;
 import com.sfin.message.messagegateway.request.AuthorizationCodeRequest;
+import com.sfin.message.messagegateway.request.NotificationRequest;
 import com.sfin.message.messagegateway.request.ShopZaloConfigRequest;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 
 public interface ZaloService {
     ShopZaloConfigEntity createZaloOAConfig(ShopZaloConfigRequest request);
@@ -14,4 +18,9 @@ public interface ZaloService {
     ShopZaloConfigEntity getAccessToken(ShopZaloConfigEntity zaloConfig);
 
     ShopZaloConfigEntity updateAccessToken(ShopZaloConfigEntity zaloConfig);
+
+    @Async
+    void sendMessage(NotificationRequest request);
+
+    void addMessageToRedis(NotificationRequest request);
 }

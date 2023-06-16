@@ -11,6 +11,7 @@ public class ZaloOAProperty {
 
     private String accessTokenUrl;
     private String authorizationCodeUrl;
+    private String znsUrl;
     private String redirectUrl;
     private String templateUrl;
     private String templateInfoUrl;

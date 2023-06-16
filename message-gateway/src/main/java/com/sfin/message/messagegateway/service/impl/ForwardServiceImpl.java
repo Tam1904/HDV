@@ -23,7 +23,7 @@ public class ForwardServiceImpl implements ForwardService {
         HttpEntity<Object> entity = new HttpEntity<>(requestBody, header);
         log.info("Forward request to [{}], method [{}]", endPoint, method.name());
         try {
-            ResponseEntity response = restTemplate.exchange(endPoint, method, entity, Object.class);
+            ResponseEntity response = restTemplate.exchange(endPoint, method, entity, String.class);
             return response;
         } catch (Exception ex){
             log.info("Can not connect to [{}]", endPoint);
@@ -31,13 +31,4 @@ public class ForwardServiceImpl implements ForwardService {
         }
     }
 
-    @Override
-    public <T> T getValue(Object data, Class<T> clazz){
-        try {
-            return clazz.cast(data);
-        }
-        catch (ClassCastException exception){
-            throw exception;
-        }
-    }
 }

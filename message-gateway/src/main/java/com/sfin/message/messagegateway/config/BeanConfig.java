@@ -1,6 +1,5 @@
 package com.sfin.message.messagegateway.config;
 
-import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+
 
 @Configuration
 public class BeanConfig {
@@ -26,10 +26,11 @@ public class BeanConfig {
 
     @Bean
     RestTemplate restTemplate(){
-        return new RestTemplateBuilder()
+        RestTemplate restTemplate = new RestTemplateBuilder()
                 .setConnectTimeout(Duration.ofMillis(timeout))
                 .setReadTimeout(Duration.ofMillis(timeout))
                 .errorHandler(new RestTemplateResponseErrorHandler())
                 .build();
+        return restTemplate;
     }
 }
