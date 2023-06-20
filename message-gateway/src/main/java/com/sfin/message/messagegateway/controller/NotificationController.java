@@ -1,7 +1,6 @@
 package com.sfin.message.messagegateway.controller;
 
 import com.sfin.eplaform.commons.response.ResponseFactory;
-import com.sfin.message.messagegateway.repository.entity.HistorySendMessage;
 import com.sfin.message.messagegateway.repository.entity.ShopZaloConfigEntity;
 import com.sfin.message.messagegateway.request.AuthorizationCodeRequest;
 import com.sfin.message.messagegateway.request.NotificationRequest;
@@ -13,7 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/message")
+@RequestMapping("/shop-config")
 @Log4j2
 public class NotificationController {
 
@@ -21,7 +20,7 @@ public class NotificationController {
     public ZaloService zaloService;
 
 
-    @PostMapping("/shop-config")
+    @PostMapping
     public ResponseEntity createZaloOAConfig(@RequestBody ShopZaloConfigRequest request) {
         log.info("create shop zalo oa config {}", request);
         ShopZaloConfigEntity entity = zaloService.createZaloOAConfig(request);
@@ -35,7 +34,7 @@ public class NotificationController {
         return ResponseFactory.success(endPoint);
     }
 
-    @PostMapping("/update-auth-code")
+    @PostMapping("/get-access-token")
     public ResponseEntity updateAuthorizationCode(@RequestBody AuthorizationCodeRequest request) {
         log.info("save authorization code {}", request);
         ShopZaloConfigEntity shopZaloConfig = zaloService.updateAuthorizationCode(request);

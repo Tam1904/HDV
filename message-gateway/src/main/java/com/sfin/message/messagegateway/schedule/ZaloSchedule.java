@@ -28,17 +28,17 @@ public class ZaloSchedule {
     private RedisRepository redisRepository;
 
 
-//    @Scheduled(fixedDelay = 3600000)
-//    public void updateAccessToken(){
-//        log.info("update access token once every hour");
-//        Long current = System.currentTimeMillis();
-//        Date begin = DateUtils.getDateRound(new Date(current), Calendar.HOUR_OF_DAY);
-//        Date end = DateUtils.addTime(begin, 1, Calendar.HOUR_OF_DAY);
-//        List<ShopZaloConfigEntity> zaloConfigs = shopZaloConfigDao.findByAccessTokenExpiresBetween(begin, end);
-//        for(ShopZaloConfigEntity zaloConfig : zaloConfigs){
-//            zaloService.updateAccessToken(zaloConfig);
-//        }
-//    }
+    @Scheduled(fixedDelay = 3600000)
+    public void updateAccessToken(){
+        log.info("update access token once every hour");
+        Long current = System.currentTimeMillis();
+        Date begin = DateUtils.getDateRound(new Date(current), Calendar.HOUR_OF_DAY);
+        Date end = DateUtils.addTime(begin, 1, Calendar.HOUR_OF_DAY);
+        List<ShopZaloConfigEntity> zaloConfigs = shopZaloConfigDao.findByAccessTokenExpiresBetween(begin, end);
+        for(ShopZaloConfigEntity zaloConfig : zaloConfigs){
+            zaloService.updateAccessToken(zaloConfig);
+        }
+    }
 
     @Scheduled(fixedDelay = 3000)
     public void sendAutoZns(){

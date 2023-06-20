@@ -10,10 +10,10 @@ public class TemplateData {
     String templateName;
     String status;
     List<TemplateParams> listParams;
-    Long timeOut;
+    Long timeout;
     String previewUrl;
     String templateQuality;
     String templateTag;
     String price;
-    boolean applyTemplateQuota;
+    Boolean applyTemplateQuota;
 }

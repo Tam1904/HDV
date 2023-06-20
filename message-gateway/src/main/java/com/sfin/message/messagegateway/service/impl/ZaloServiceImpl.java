@@ -8,11 +8,11 @@ import com.sfin.eplaform.commons.utils.Definition;
 import com.sfin.message.messagegateway.exception.CoreErrorCode;
 import com.sfin.message.messagegateway.exception.CoreException;
 import com.sfin.message.messagegateway.properties.ZaloOAProperty;
-import com.sfin.message.messagegateway.repository.HistorySendMessageDao;
-import com.sfin.message.messagegateway.repository.RedisRepository;
-import com.sfin.message.messagegateway.repository.ShopZaloConfigDao;
-import com.sfin.message.messagegateway.repository.entity.HistorySendMessage;
+import com.sfin.message.messagegateway.repository.*;
+import com.sfin.message.messagegateway.repository.entity.HistorySendMessageEntity;
+import com.sfin.message.messagegateway.repository.entity.ShopTemplatesEntity;
 import com.sfin.message.messagegateway.repository.entity.ShopZaloConfigEntity;
+import com.sfin.message.messagegateway.repository.entity.ZnsTemplateDetailEntity;
 import com.sfin.message.messagegateway.request.*;
 import com.sfin.message.messagegateway.response.AccessTokenResponse;
 import com.sfin.message.messagegateway.response.SendMessageZNSResponse;
@@ -23,7 +23,6 @@ import com.sfin.message.messagegateway.response.error.ErrorResponse;
 import com.sfin.message.messagegateway.service.ForwardService;
 import com.sfin.message.messagegateway.service.ZaloService;
 import lombok.extern.log4j.Log4j2;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,10 +32,10 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import java.io.IOException;
-import java.util.Base64;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.*;
 
 @Service
 @Log4j2
@@ -54,6 +53,10 @@ public class ZaloServiceImpl implements ZaloService {
     private RedisRepository redisRepository;
     @Autowired
     private HistorySendMessageDao historySendMessageDao;
+    @Autowired
+    private ShopTemplatesDao shopTemplatesDao;
+    @Autowired
+    private ZnsTemplateDetailDao znsTemplateDetailDao;
 
     private String AUTHORIZATION_CODE = "authorization_code";
     private String REFRESH_TOKEN = "refresh_token";
@@ -71,9 +74,9 @@ public class ZaloServiceImpl implements ZaloService {
     @Override
     public String generateUrlCode(Long shopId) {
         ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findById(shopId).orElseThrow(() -> new CoreException(CoreErrorCode.BAD_REQUEST));
-        String codeVerifier = RandomStringUtils.random(43, true, true);
+        String codeVerifier = genCodeVerifier();
         log.info("code verifier: {}", codeVerifier);
-        String codeChallenge = Base64.getEncoder().withoutPadding().encodeToString(DigestUtils.sha256(codeVerifier));
+        String codeChallenge = genCodeChallenge(codeVerifier);
         log.info("code challenge: {}", codeChallenge);
         String authorizationCodeUrl = zaloOAProperty.getAuthorizationCodeUrl();
         String endPoint = String.format(authorizationCodeUrl, shopZaloConfig.getAppId(), zaloOAProperty.getRedirectUrl(), codeChallenge);
@@ -83,6 +86,28 @@ public class ZaloServiceImpl implements ZaloService {
         shopZaloConfig.setCodeVerifier(codeVerifier);
         shopZaloConfigDao.save(shopZaloConfig);
         return endPoint;
+    }
+
+    public String genCodeVerifier() {
+        SecureRandom sr = new SecureRandom();
+        byte[] code = new byte[32];
+        sr.nextBytes(code);
+        String verifier = Base64.getUrlEncoder().withoutPadding().encodeToString(code);
+        return verifier;
+    }
+
+    public String genCodeChallenge(String codeVerifier) {
+        String result = null;
+        try {
+            byte[] bytes = codeVerifier.getBytes(StandardCharsets.US_ASCII);
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            md.update(bytes, 0, bytes.length);
+            byte[] digest = md.digest();
+            result = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (Exception ex) {
+            log.error(ex.getMessage(), ex);
+        }
+        return result;
     }
 
     @Override
@@ -159,6 +184,7 @@ public class ZaloServiceImpl implements ZaloService {
         throw new CoreException(CoreErrorCode.GENERAL_ERROR);
     }
 
+    @Override
     public TemplateDetailResponse getDetailTemplate(Integer templateId, Long shopId) {
         ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findById(shopId).orElseThrow(() -> new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS));
         HttpHeaders headers = new HttpHeaders();
@@ -199,8 +225,8 @@ public class ZaloServiceImpl implements ZaloService {
         ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findById(shopId)
                 .orElseThrow(() -> new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS));
         Integer templateId = Integer.valueOf((String) request.getData().get("template_id"));
-        TemplateDetailResponse template = getDetailTemplate(templateId, shopId);
-        log.info("template id {} : {}", templateId, template);
+//        TemplateDetailResponse template = getDetailTemplate(templateId, shopId);
+//        log.info("template id {} : {}", templateId, template);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -210,9 +236,13 @@ public class ZaloServiceImpl implements ZaloService {
         json.put("phone", request.getData().get("phone"));
         json.put("template_id", request.getData().get("template_id"));
         json.put("tracking_id", RandomStringUtils.randomAlphabetic(20) + System.currentTimeMillis());
+        ShopTemplatesEntity shopTemplate = shopTemplatesDao.findByShopIdAndTemplateId(shopId, templateId);
+        if(shopTemplate != null)
+            throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
+        List<ZnsTemplateDetailEntity> templateDetails = znsTemplateDetailDao.findByTemplateId(templateId);
         Map<String, Object> objectMap = new HashMap<>();
-        for (TemplateParams params : template.getData().getListParams())
-            objectMap.put(params.getName(), request.getData().getOrDefault(params.getName(), ""));
+        for (ZnsTemplateDetailEntity param : templateDetails)
+            objectMap.put(param.getName(), request.getData().getOrDefault(param.getName(), ""));
         json.put("template_data", objectMap);
         log.info("send message with templateId {} and body {}", templateId, json);
 
@@ -222,29 +252,28 @@ public class ZaloServiceImpl implements ZaloService {
             String data = (String) response.getBody();
             JSONObject jsonObject = new JSONObject(data);
             if (jsonObject.has("error")) {
-                HistorySendMessage historySendMessage = new HistorySendMessage();
-                historySendMessage.setShopId(shopId);
-                historySendMessage.setTemplateId(templateId);
-                historySendMessage.setBody(jsonObject.toString());
+                HistorySendMessageEntity historySendMessageEntity = new HistorySendMessageEntity();
+                historySendMessageEntity.setShopId(shopId);
+                historySendMessageEntity.setTemplateId(templateId);
+                historySendMessageEntity.setBody(json.toString());
                 Integer error = jsonObject.getInt("error");
-                log.info("error : {}", error);
                 if (error == 0) {
                     SendMessageZNSResponse znsResponse = objectMapper.readValue(data, new TypeReference<SendMessageZNSResponse>() {
                     });
-                    AppUtils.copyPropertiesIgnoreNull(znsResponse, historySendMessage);
-                    AppUtils.copyPropertiesIgnoreNull(znsResponse.getData(), historySendMessage);
-//                    Date sendTime = new Date(znsResponse.getData().getSendTime());
-//                    historySendMessage.setSendTime(sendTime);
-                    AppUtils.copyPropertiesIgnoreNull(znsResponse.getData().getQuota(), historySendMessage);
+                    AppUtils.copyPropertiesIgnoreNull(znsResponse, historySendMessageEntity);
+                    AppUtils.copyPropertiesIgnoreNull(znsResponse.getData(), historySendMessageEntity);
+                    AppUtils.copyPropertiesIgnoreNull(znsResponse.getData().getQuota(), historySendMessageEntity);
+                    AppUtils.copyPropertiesIgnoreNull(shopTemplate, historySendMessageEntity);
+                    historySendMessageEntity.setPrice(shopTemplate.getPrice());
                 } else {
                     ErrorResponse templateDetailError = objectMapper.readValue(data, new TypeReference<ErrorResponse>() {
                     });
-                    historySendMessage.setError(templateDetailError.getError());
-                    historySendMessage.setMessage(template.getMessage());
-                    historySendMessage.setSendTime(new Date());
+                    historySendMessageEntity.setError(templateDetailError.getError());
+                    historySendMessageEntity.setMessage(templateDetailError.getMessage());
+                    historySendMessageEntity.setSendTime(new Date());
                 }
-                log.info("save history send zns with msg_id {}", historySendMessage.getMsgId());
-                historySendMessageDao.save(historySendMessage);
+                log.info("save history send zns with msg_id {}", historySendMessageEntity.getMsgId());
+                historySendMessageDao.save(historySendMessageEntity);
             }
         } catch (Exception ex) {
             log.info("error send message {}", ex.getMessage());

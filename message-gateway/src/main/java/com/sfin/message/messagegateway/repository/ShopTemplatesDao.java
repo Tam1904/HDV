@@ -1,10 +1,12 @@
 package com.sfin.message.messagegateway.repository;
 
-import com.sfin.message.messagegateway.repository.entity.ShopTemplates;
+import com.sfin.message.messagegateway.repository.entity.ShopTemplatesEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface ShopTemplatesDao extends JpaRepository<ShopTemplates, Long>, JpaSpecificationExecutor<ShopTemplates> {
+public interface ShopTemplatesDao extends JpaRepository<ShopTemplatesEntity, Long>, JpaSpecificationExecutor<ShopTemplatesEntity> {
 
-    ShopTemplates findByShopIdAndTemplateId(Long shopId, Long templateId);
+    ShopTemplatesEntity findByShopIdAndTemplateId(Long shopId, Integer templateId);
+
+
 }
