@@ -15,4 +15,11 @@ public class ZaloOAProperty {
     private String redirectUrl;
     private String templateUrl;
     private String templateInfoUrl;
+    private String infoUrl;
+    private String userUrl;
+    private String userProfileUrl;
+    private String userConversationUrl;
+    private String userListrecentchatUrl;
+    private String sendMessageCs;
+
 }

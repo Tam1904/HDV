@@ -70,7 +70,7 @@ public class ShopZaloServiceImpl implements ShopZaloService {
         else
             path = String.format(TEMPLATE_PATH + "&status=%s", 0, limit, status);
         ShopZaloConfigEntity zaloConfig = shopZaloConfigDao.findById(shopId).orElseThrow(() -> new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS));
-        HttpHeaders headers = buildHttpHeaders(zaloConfig.getAccessToken());
+        HttpHeaders headers = forwardService.buildHeaders(zaloConfig.getAccessToken(), MediaType.APPLICATION_JSON);
         ResponseEntity response = forwardService.forward(zaloOAProperty.getTemplateUrl(), path, HttpMethod.GET, null, headers);
         if(response.getStatusCode().is2xxSuccessful()){
             try {
@@ -134,8 +134,8 @@ public class ShopZaloServiceImpl implements ShopZaloService {
     }
 
     @Override
-    public ResponseEntity getTemplateOfShop(Long shopId, String keyword, Long begin, Long end, Boolean active, Pageable pageable){
-        Page<ShopTemplatesEntity> responses = shopTemplatesDao.findAll(makeQueryShopTemplate(keyword, shopId, begin, end, active), pageable).map(o -> {
+    public ResponseEntity getTemplateOfShop(Long shopId, String keyword, Long begin, Long end, Boolean active, ShopTemplatesEntity.Type type, Pageable pageable){
+        Page<ShopTemplatesEntity> responses = shopTemplatesDao.findAll(makeQueryShopTemplate(keyword, shopId, begin, end, active, type), pageable).map(o -> {
             List<ZnsTemplateDetailEntity> details = znsTemplateDetailDao.findByTemplateId(o.getTemplateId());
             o.setTemplateDetails(details);
             return o;
@@ -146,20 +146,13 @@ public class ShopZaloServiceImpl implements ShopZaloService {
     @Override
     public ResponseEntity getTemplateDetailOfShop(Long shopTemplateId){
         ShopTemplatesEntity shopTemplate = shopTemplatesDao.findById(shopTemplateId).orElseThrow(() -> new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS));
-        if(shopTemplate != null)
+        if(shopTemplate == null)
             throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
         List<ZnsTemplateDetailEntity> znsTemplateDetails = znsTemplateDetailDao.findByTemplateId(shopTemplate.getTemplateId());
         shopTemplate.setTemplateDetails(znsTemplateDetails);
         return ResponseFactory.success(shopTemplate);
     }
 
-
-    public HttpHeaders buildHttpHeaders(String accessToken){
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.add("access_token", accessToken);
-        return headers;
-    }
 
     @Override
     public ResponseEntity updateTemplateShop(Long shopTemplateId, UpdateShopTemplateRequest request){
@@ -178,8 +171,9 @@ public class ShopZaloServiceImpl implements ShopZaloService {
                     znsTemplateDetail.setCreatedDate(new Date(System.currentTimeMillis()));
                     znsTemplateDetailDao.save(znsTemplateDetail);
                 }
-                shopTemplate.setCreatedDate(new Date());
+                return ResponseFactory.success(shopTemplatesDao.save(shopTemplate));
             }
+
             throw new CoreException(CoreErrorCode.BAD_REQUEST, detailTemplate.getMessage());
     }
 
@@ -215,7 +209,7 @@ public class ShopZaloServiceImpl implements ShopZaloService {
     Specification<HistorySendMessageEntity> makeQueryHistory(String keyword, Long begin, Long end, Long shopId, Integer templateId, Integer error){
         Specification<HistorySendMessageEntity> specification = Specification.where(null);
         String kw = "%" + keyword + "%";
-        specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.like(root.get(HistorySendMessageEntity.HistorySendMessage_.TEMPLATE_NAME), keyword)));
+        specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.like(root.get(HistorySendMessageEntity.HistorySendMessage_.TEMPLATE_NAME), kw)));
         if(begin != null && end != null)
             specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.between(root.get(HistorySendMessageEntity.HistorySendMessage_.SEND_TIME), new Date(begin), new Date(end))));
         if(shopId != null)
@@ -229,7 +223,7 @@ public class ShopZaloServiceImpl implements ShopZaloService {
         return specification;
     }
 
-    Specification<ShopTemplatesEntity> makeQueryShopTemplate(String keyword, Long shopId, Long begin, Long end, Boolean active){
+    Specification<ShopTemplatesEntity> makeQueryShopTemplate(String keyword, Long shopId, Long begin, Long end, Boolean active, ShopTemplatesEntity.Type type){
         String kw = "%" + keyword + "%";
         Specification<ShopTemplatesEntity> specification = Specification.where(null);
         specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.like(root.get(ShopTemplatesEntity.ShopTemplate_.TEMPLATE_NAME), kw)));
@@ -239,6 +233,8 @@ public class ShopZaloServiceImpl implements ShopZaloService {
             specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(ShopTemplatesEntity.ShopTemplate_.SHOP_ID), shopId)));
         if(active != null)
             specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(ShopTemplatesEntity.ShopTemplate_.ACTIVE), active)));
+        if(type != null)
+            specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(ShopTemplatesEntity.ShopTemplate_.TYPE), type)));
         return specification;
     }
 }

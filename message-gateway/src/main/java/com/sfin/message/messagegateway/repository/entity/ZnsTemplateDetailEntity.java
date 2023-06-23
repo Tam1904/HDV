@@ -55,7 +55,7 @@ public class ZnsTemplateDetailEntity implements Serializable {
      * Thông tin cho biết thuộc tính có thể nhận giá trị rỗng hay không.
      */
     @Column(name = "accept_null")
-    private Integer acceptNull;
+    private Boolean acceptNull;
 
     @Column(name = "created_date")
     private Date createdDate;

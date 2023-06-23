@@ -3,6 +3,7 @@ package com.sfin.message.messagegateway.controller;
 import com.sfin.message.messagegateway.exception.CoreErrorCode;
 import com.sfin.message.messagegateway.exception.CoreException;
 import com.sfin.message.messagegateway.interceptor.Payload;
+import com.sfin.message.messagegateway.repository.entity.ShopTemplatesEntity;
 import com.sfin.message.messagegateway.request.ShopTemplateRequest;
 import com.sfin.message.messagegateway.request.TemplateShopRequest;
 import com.sfin.message.messagegateway.request.UpdateShopTemplateRequest;
@@ -19,7 +20,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/shop-zalo")
 @Log4j2
-public class ShopZaloConfigController {
+public class ShopZaloTemplateController {
 
     @Autowired
     private ShopZaloService shopZaloService;
@@ -52,6 +53,7 @@ public class ShopZaloConfigController {
             , @RequestParam(value = "beginDate", required = false) Long begin
             , @RequestParam(value = "endDate", required = false) Long end
             , @RequestParam(value = "active", required = false) Boolean active
+            , @RequestParam(value = "type", required = false) ShopTemplatesEntity.Type type
             , @RequestParam(value = "page", defaultValue = "0", required = false) Integer page
             , @RequestParam(value = "pageSize", defaultValue = "10", required = false) Integer pageSize
             , @RequestParam(value = "orderBy", defaultValue = "createdDate", required = false) String orderBy
@@ -60,7 +62,7 @@ public class ShopZaloConfigController {
             throw new CoreException(CoreErrorCode.UNAUTHORIZED);
         Pageable pageable = DaoUtils.buildPageable(page, pageSize, orderBy, direction);
         log.info("template of shop {}", shopId);
-        return shopZaloService.getTemplateOfShop(shopId, keyword, begin, end, active, pageable);
+        return shopZaloService.getTemplateOfShop(shopId, keyword, begin, end, active, type, pageable);
     }
 
     @GetMapping("/{shopTemplateId:\\d+}")
@@ -100,12 +102,11 @@ public class ShopZaloConfigController {
             , @RequestParam(value = "keyword", defaultValue = "", required = false) String keyword
             , @RequestParam(value = "beginDate", required = false) Long begin
             , @RequestParam(value = "endDate", required = false) Long end
-            , @RequestParam(value = "active", required = false) Boolean active
             , @RequestParam(value = "templateId", required = false) Integer templateId
             , @RequestParam(value = "error", required = false) Integer error
             , @RequestParam(value = "page", defaultValue = "0", required = false) Integer page
             , @RequestParam(value = "pageSize", defaultValue = "10", required = false) Integer pageSize
-            , @RequestParam(value = "orderBy", defaultValue = "createdDate", required = false) String orderBy
+            , @RequestParam(value = "orderBy", defaultValue = "sendTime", required = false) String orderBy
             , @RequestParam(value = "direction", defaultValue = "DESC", required = false) String direction){
         if(payload == null)
             throw new CoreException(CoreErrorCode.UNAUTHORIZED);

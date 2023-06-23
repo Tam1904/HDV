@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -43,7 +44,12 @@ public class ZaloSchedule {
     @Scheduled(fixedDelay = 3000)
     public void sendAutoZns(){
         List<NotificationRequest> requests = redisRepository.messageZnsList();
-        for(NotificationRequest request: requests)
-            zaloService.sendMessage(request);
+        for(NotificationRequest request: requests){
+            String w = (String) request.getData().get("phone");
+            List<String> phones = Arrays.asList(w.split(","));
+            phones.forEach(phone -> {
+                zaloService.sendMessage(request, phone);
+            });
+        }
     }
 }

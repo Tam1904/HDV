@@ -1,12 +1,10 @@
 package com.sfin.message.messagegateway.service.impl;
 
+import com.sfin.eplaform.commons.utils.Definition;
 import com.sfin.message.messagegateway.service.ForwardService;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -29,6 +27,14 @@ public class ForwardServiceImpl implements ForwardService {
             log.info("Can not connect to [{}]", endPoint);
             throw ex;
         }
+    }
+
+    @Override
+    public HttpHeaders buildHeaders(String accessToken, MediaType mediaType){
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(mediaType);
+        headers.add(Definition.ZALO_CONFIG.ACCESS_TOKEN, accessToken);
+        return headers;
     }
 
 }

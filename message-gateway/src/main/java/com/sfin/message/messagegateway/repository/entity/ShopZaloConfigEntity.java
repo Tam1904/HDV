@@ -14,6 +14,10 @@ public class ShopZaloConfigEntity implements Serializable {
     private static final long serialVersionUID = 1L;
 
     @Id
+    @Column(name = "id", nullable = false)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     @Column(name = "shop_id", nullable = false)
     private Long shopId;
 
@@ -53,4 +57,18 @@ public class ShopZaloConfigEntity implements Serializable {
     @Column(name = "modify_token_date")
     private Date modifyTokenDate;
 
+    @Column(name = "name")
+    private String name;
+
+    @Column(name = "avatar")
+    private String avatar;
+
+    @Column(name = "description")
+    private String description;
+
+    @Column(name = "cover")
+    private String cover;
+
+    @Column(name = "is_verified")
+    private Boolean verified;
 }

@@ -5,11 +5,7 @@ import lombok.Data;
 import java.util.Date;
 
 @Data
-public class ShopZaloConfigRequest {
+public class ShopZaloConfigRequest extends UpdateShopZaloConfigRequest{
 
     private Long shopId;
-    private String appId;
-    private String secretKey;
-    private String oaId;
-
 }

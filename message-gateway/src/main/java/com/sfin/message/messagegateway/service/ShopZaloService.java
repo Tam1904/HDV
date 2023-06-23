@@ -1,5 +1,6 @@
 package com.sfin.message.messagegateway.service;
 
+import com.sfin.message.messagegateway.repository.entity.ShopTemplatesEntity;
 import com.sfin.message.messagegateway.request.ShopTemplateRequest;
 import com.sfin.message.messagegateway.request.TemplateShopRequest;
 import com.sfin.message.messagegateway.request.UpdateShopTemplateRequest;
@@ -13,7 +14,7 @@ public interface ShopZaloService {
     ResponseEntity createShopTemplate(Long shopId, TemplateShopRequest request);
 
 
-    ResponseEntity getTemplateOfShop(Long shopId, String keyword, Long begin, Long end, Boolean active, Pageable pageable);
+    ResponseEntity getTemplateOfShop(Long shopId, String keyword, Long begin, Long end, Boolean active, ShopTemplatesEntity.Type type, Pageable pageable);
 
     ResponseEntity getTemplateDetailOfShop(Long shopTemplateId);
 

@@ -15,4 +15,8 @@ public interface ShopZaloConfigDao extends JpaRepository<ShopZaloConfigEntity, L
 
     List<ShopZaloConfigEntity> findByRefreshTokenExpiresBetween(Date begin, Date end);
 
+    ShopZaloConfigEntity findByShopIdAndOaId(Long shopId, String oaId);
+
+    ShopZaloConfigEntity findOneByShopId(Long shopId);
+
 }
