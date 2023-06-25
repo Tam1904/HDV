@@ -7,18 +7,20 @@ import com.sfin.message.messagegateway.request.UpdateShopTemplateRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 
+import java.util.List;
+
 public interface ShopZaloService {
 
     ResponseEntity getShopTemplateRegister(Long shopId, Integer status, Integer limit);
 
-    ResponseEntity createShopTemplate(Long shopId, TemplateShopRequest request);
+    ResponseEntity createShopTemplate(Long shopId, List<ShopTemplateRequest> requests);
 
 
     ResponseEntity getTemplateOfShop(Long shopId, String keyword, Long begin, Long end, Boolean active, ShopTemplatesEntity.Type type, Pageable pageable);
 
-    ResponseEntity getTemplateDetailOfShop(Long shopTemplateId);
+    ResponseEntity getTemplateDetailOfShop(Long shopId, Integer templateId);
 
-    ResponseEntity updateTemplateShop(Long shopTemplateId, UpdateShopTemplateRequest request);
+//    ResponseEntity updateTemplateShop(Long shopTemplateId, UpdateShopTemplateRequest request);
 
     ResponseEntity deleteShopTemplate(Long shopTemplateId);
 

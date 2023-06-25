@@ -6,12 +6,16 @@ import com.sfin.message.messagegateway.request.NotificationRequest;
 import com.sfin.message.messagegateway.request.ShopZaloConfigRequest;
 import com.sfin.message.messagegateway.request.UpdateShopZaloConfigRequest;
 import com.sfin.message.messagegateway.response.TemplateDetailResponse;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 
 public interface ZaloService {
     ShopZaloConfigEntity createZaloOAConfig(ShopZaloConfigRequest request);
 
     ShopZaloConfigEntity updateZaloOAConfig(Long id, UpdateShopZaloConfigRequest request);
+
+    ResponseEntity getOneShopConfig(Long shopId);
 
     String generateUrlCode(Long shopId, String oaId);
 

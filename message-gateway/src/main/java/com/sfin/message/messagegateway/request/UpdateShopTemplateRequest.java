@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class UpdateShopTemplateRequest {
 
+    Integer templateId;
     Boolean active;
     ShopTemplatesEntity.Type type;
 }

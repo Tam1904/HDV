@@ -2,15 +2,19 @@ package com.sfin.message.messagegateway.controller;
 
 import com.sfin.eplaform.commons.response.ResponseFactory;
 import com.sfin.eplaform.commons.utils.AppUtils;
+import com.sfin.message.messagegateway.exception.CoreErrorCode;
+import com.sfin.message.messagegateway.exception.CoreException;
 import com.sfin.message.messagegateway.interceptor.Payload;
+import com.sfin.message.messagegateway.repository.ShopZaloConfigDao;
 import com.sfin.message.messagegateway.repository.entity.ShopZaloConfigEntity;
 import com.sfin.message.messagegateway.request.AuthorizationCodeRequest;
-import com.sfin.message.messagegateway.request.NotificationRequest;
 import com.sfin.message.messagegateway.request.ShopZaloConfigRequest;
 import com.sfin.message.messagegateway.request.UpdateShopZaloConfigRequest;
 import com.sfin.message.messagegateway.service.ZaloService;
+import com.sfin.message.messagegateway.utils.DaoUtils;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +25,8 @@ public class ShopConfigController {
 
     @Autowired
     public ZaloService zaloService;
+    @Autowired
+    public ShopZaloConfigDao shopZaloConfigDao;
 
 
     @PostMapping
@@ -48,12 +54,20 @@ public class ShopConfigController {
         return ResponseFactory.success(entity);
     }
 
+    @GetMapping()
+    public ResponseEntity getAllShopConfig(@RequestParam Long shopId){
+        log.info("get shop config {}", shopId );
+        return zaloService.getOneShopConfig(shopId);
+    }
+
     @GetMapping("/generate-auth-code")
     public ResponseEntity generateUrlCode(@RequestParam Long shopId, @RequestParam String oaId) {
         log.info("generate auth code for shopId {}", shopId);
         String endPoint = zaloService.generateUrlCode(shopId, oaId);
         return ResponseFactory.success(endPoint);
     }
+
+
 
     @PostMapping("/get-access-token")
     public ResponseEntity updateAuthorizationCode(@RequestBody AuthorizationCodeRequest request) {
@@ -62,5 +76,22 @@ public class ShopConfigController {
         return ResponseFactory.success(shopZaloConfig);
     }
 
+    @GetMapping("/get-access-token")
+    public ResponseEntity getAccessTokenOfShop(@RequestParam Long shopId){
+        log.info("update access token of shop {}", shopId);
+        ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findOneByShopId(shopId);
+        if(shopId == null)
+            throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
+        return ResponseFactory.success(zaloService.updateAccessToken(shopZaloConfig));
+    }
+
+    @PutMapping("update-access-token")
+    public ResponseEntity updateAccessTokenOfShop(@RequestParam Long shopId){
+        log.info("update access token of shop {}", shopId);
+        ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findOneByShopId(shopId);
+        if(shopId == null)
+            throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
+        return ResponseFactory.success(zaloService.updateAccessToken(shopZaloConfig));
+    }
 
 }

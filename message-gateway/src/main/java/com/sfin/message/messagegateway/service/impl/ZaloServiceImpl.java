@@ -3,6 +3,7 @@ package com.sfin.message.messagegateway.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sfin.eplaform.commons.response.ResponseFactory;
 import com.sfin.eplaform.commons.utils.AppUtils;
 import com.sfin.eplaform.commons.utils.Definition;
 import com.sfin.message.messagegateway.exception.CoreErrorCode;
@@ -23,10 +24,12 @@ import com.sfin.message.messagegateway.response.error.ErrorResponse;
 import com.sfin.message.messagegateway.service.ForwardService;
 import com.sfin.message.messagegateway.service.UserOAService;
 import com.sfin.message.messagegateway.service.ZaloService;
+import com.sfin.message.messagegateway.utils.JsonUtils;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -68,7 +71,7 @@ public class ZaloServiceImpl implements ZaloService {
     @Override
     public ShopZaloConfigEntity createZaloOAConfig(ShopZaloConfigRequest request) {
         ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findOneByShopId(request.getShopId());
-        if(shopZaloConfig != null)
+        if (shopZaloConfig != null)
             throw new CoreException(CoreErrorCode.ENTITY_EXISTED);
         shopZaloConfig = new ShopZaloConfigEntity();
         AppUtils.copyPropertiesIgnoreNull(request, shopZaloConfig);
@@ -77,11 +80,11 @@ public class ZaloServiceImpl implements ZaloService {
     }
 
     @Override
-    public ShopZaloConfigEntity updateZaloOAConfig(Long id, UpdateShopZaloConfigRequest request){
+    public ShopZaloConfigEntity updateZaloOAConfig(Long id, UpdateShopZaloConfigRequest request) {
         ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findById(id).orElseThrow(() -> new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS));
-        if(!shopZaloConfig.getOaId().equals(request.getOaId())){
+        if (!shopZaloConfig.getOaId().equals(request.getOaId())) {
             ShopZaloConfigEntity entity = shopZaloConfigDao.findByShopIdAndOaId(shopZaloConfig.getShopId(), request.getOaId());
-            if(entity!= null)
+            if (entity != null)
                 throw new CoreException(CoreErrorCode.ENTITY_EXISTED, "Tồn tại ShopId và OA-ID");
         }
         AppUtils.copyPropertiesIgnoreNull(request, shopZaloConfig);
@@ -89,11 +92,19 @@ public class ZaloServiceImpl implements ZaloService {
         return shopZaloConfigDao.save(shopZaloConfig);
     }
 
+    @Override
+    public ResponseEntity getOneShopConfig(Long shopId) {
+        ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findOneByShopId(shopId);
+        if (shopZaloConfig == null)
+            throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
+        return ResponseFactory.success(shopZaloConfig);
+    }
+
 
     @Override
     public String generateUrlCode(Long shopId, String oaId) {
         ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findByShopIdAndOaId(shopId, oaId);
-        if(shopZaloConfig== null)
+        if (shopZaloConfig == null)
             throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
         String codeVerifier = genCodeVerifier();
         log.info("code verifier: {}", codeVerifier);
@@ -173,8 +184,7 @@ public class ZaloServiceImpl implements ZaloService {
         valueMap.add("refresh_token", zaloConfig.getRefreshToken());
         valueMap.add("app_id", zaloConfig.getAppId());
         valueMap.add("grant_type", REFRESH_TOKEN);
-        HttpEntity<Object> entity = new HttpEntity<>(valueMap, headers);
-        ResponseEntity response = forwardService.forward(zaloOAProperty.getAccessTokenUrl(), "", HttpMethod.POST, entity, headers);
+        ResponseEntity response = forwardService.forward(zaloOAProperty.getAccessTokenUrl(), "", HttpMethod.POST, valueMap, headers);
         Long currentTime = System.currentTimeMillis();
         zaloConfig = buildShopZaloConfig(response, zaloConfig, currentTime);
         return shopZaloConfigDao.save(zaloConfig);
@@ -182,28 +192,18 @@ public class ZaloServiceImpl implements ZaloService {
 
     public ShopZaloConfigEntity buildShopZaloConfig(ResponseEntity response, ShopZaloConfigEntity zaloConfig, Long currentTime) {
         if (response.getStatusCode().is2xxSuccessful()) {
-            try {
-                String data = (String) response.getBody();
-                JSONObject object = new JSONObject(data);
-                if (object.has("access_token")) {
-                    AccessTokenResponse accessTokenResponse = objectMapper.readValue(object.toString(), new TypeReference<AccessTokenResponse>() {
-                    });
-                    Long timeExpire = Long.valueOf(accessTokenResponse.getExpiresIn());
-                    zaloConfig.setAccessToken(accessTokenResponse.getAccessToken());
-                    zaloConfig.setRefreshToken(accessTokenResponse.getRefreshToken());
-                    zaloConfig.setAccessTokenExpires(new Date(currentTime + timeExpire * 1000));
-                    zaloConfig.setModifyTokenDate(new Date(currentTime));
-                    return zaloConfig;
-                } else if (object.has("error_name")) {
-                    AccessTokenErrorResponse accessTokenErrorResponse = objectMapper.readValue(object.toString(), new TypeReference<AccessTokenErrorResponse>() {
-                    });
-                    log.info("message code {}: {}", accessTokenErrorResponse.getError(), accessTokenErrorResponse.getErrorName());
-                    Map<String, Object> mData = new HashMap<>();
-                    mData.put("error", accessTokenErrorResponse);
-                    throw new CoreException(CoreErrorCode.BAD_REQUEST, mData);
-                }
-            } catch (IOException ex) {
-                log.info("error message get access token {}", ex.getMessage());
+            String data = (String) response.getBody();
+            JSONObject object = new JSONObject(data);
+            if (object.has("access_token")) {
+                AccessTokenResponse accessTokenResponse = JsonUtils.jsonToObject(object.toString(), AccessTokenResponse.class);
+                Long timeExpire = Long.valueOf(accessTokenResponse.getExpiresIn());
+                zaloConfig.setAccessToken(accessTokenResponse.getAccessToken());
+                zaloConfig.setRefreshToken(accessTokenResponse.getRefreshToken());
+                zaloConfig.setAccessTokenExpires(new Date(currentTime + timeExpire * 1000));
+                zaloConfig.setModifyTokenDate(new Date(currentTime));
+                return zaloConfig;
+            } else if (object.has("error_name")) {
+                JsonUtils.returnErrorResponse(object.toString());
             }
         }
         throw new CoreException(CoreErrorCode.GENERAL_ERROR);
@@ -211,32 +211,25 @@ public class ZaloServiceImpl implements ZaloService {
 
     @Override
     public TemplateDetailResponse getDetailTemplate(Integer templateId, Long shopId) {
-        ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findById(shopId).orElseThrow(() -> new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS));
+        ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findOneByShopId(shopId);
+        if (shopZaloConfig == null)
+            throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
         HttpHeaders headers = forwardService.buildHeaders(shopZaloConfig.getAccessToken(), MediaType.APPLICATION_JSON);
         String baseUrl = zaloOAProperty.getTemplateInfoUrl();
         String path = "?template_id=" + templateId;
         HttpEntity<Object> entity = new HttpEntity<>(headers);
         ResponseEntity response = forwardService.forward(baseUrl, path, HttpMethod.GET, entity, headers);
         if (response.getStatusCode().is2xxSuccessful()) {
-            try {
-                String data = (String) response.getBody();
-                JSONObject object = new JSONObject(data);
-                if (object.get("error") != null) {
-                    Integer errorCode = object.getInt("error");
-                    if (errorCode == 0) {
-                        TemplateDetailResponse detailResponse = objectMapper.readValue(data, new TypeReference<TemplateDetailResponse>() {
-                        });
-                        return detailResponse;
-                    } else {
-                        ErrorResponse templateDetailError = objectMapper.readValue(data, new TypeReference<ErrorResponse>() {
-                        });
-                        Map<String, Object> mData = new HashMap<>();
-                        mData.put("error", templateDetailError);
-                        throw new CoreException(CoreErrorCode.BAD_REQUEST, mData);
-                    }
+            String data = (String) response.getBody();
+            JSONObject object = new JSONObject(data);
+            if (object.has("error")) {
+                Integer errorCode = object.getInt("error");
+                if (errorCode == 0) {
+                    TemplateDetailResponse detailResponse = JsonUtils.jsonToObject(object.toString(), TemplateDetailResponse.class);
+                    return detailResponse;
+                } else {
+                    JsonUtils.returnErrorResponse(object.toString());
                 }
-            } catch (JsonProcessingException ex) {
-                log.info("error message get template id {}", ex.getMessage());
             }
         }
         throw new CoreException(CoreErrorCode.BAD_REQUEST);
@@ -246,8 +239,8 @@ public class ZaloServiceImpl implements ZaloService {
     public void sendMessage(NotificationRequest request, String phone) {
         Long shopId = Long.valueOf((String) request.getData().get("shop_id"));
         ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findOneByShopId(shopId);
-        if(shopZaloConfig== null)
-             throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
+        if (shopZaloConfig == null)
+            throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
         Integer templateId = Integer.valueOf((String) request.getData().get("template_id"));
 
         HttpHeaders headers = forwardService.buildHeaders(shopZaloConfig.getAccessToken(), MediaType.APPLICATION_JSON);
@@ -258,7 +251,7 @@ public class ZaloServiceImpl implements ZaloService {
         json.put("template_id", request.getData().get("template_id"));
         json.put("tracking_id", RandomStringUtils.randomAlphabetic(20) + System.currentTimeMillis());
         ShopTemplatesEntity shopTemplate = shopTemplatesDao.findByShopIdAndTemplateId(shopId, templateId);
-        if(shopTemplate == null)
+        if (shopTemplate == null)
             throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
         List<ZnsTemplateDetailEntity> templateDetails = znsTemplateDetailDao.findByTemplateId(templateId);
         Map<String, Object> objectMap = new HashMap<>();
@@ -279,8 +272,7 @@ public class ZaloServiceImpl implements ZaloService {
                 historySendMessageEntity.setBody(json.toString());
                 Integer error = jsonObject.getInt("error");
                 if (error == 0) {
-                    SendMessageZNSResponse znsResponse = objectMapper.readValue(data, new TypeReference<SendMessageZNSResponse>() {
-                    });
+                    SendMessageZNSResponse znsResponse = JsonUtils.jsonToObject(jsonObject.toString(), SendMessageZNSResponse.class);
                     AppUtils.copyPropertiesIgnoreNull(znsResponse, historySendMessageEntity);
                     AppUtils.copyPropertiesIgnoreNull(znsResponse.getData(), historySendMessageEntity);
                     AppUtils.copyPropertiesIgnoreNull(znsResponse.getData().getQuota(), historySendMessageEntity);
@@ -302,8 +294,8 @@ public class ZaloServiceImpl implements ZaloService {
     }
 
     @Override
-    public void addMessageToRedis(NotificationRequest request){
-        log.info("==== add message zns to queue {}" , request);
+    public void addMessageToRedis(NotificationRequest request) {
+        log.info("==== add message zns to queue {}", request);
         redisRepository.addMessageToQueue(request);
     }
 

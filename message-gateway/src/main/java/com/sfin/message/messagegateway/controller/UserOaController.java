@@ -2,11 +2,14 @@ package com.sfin.message.messagegateway.controller;
 
 import com.sfin.eplaform.commons.response.ResponseFactory;
 import com.sfin.message.messagegateway.repository.ShopZaloConfigDao;
+import com.sfin.message.messagegateway.repository.entity.ShopTemplatesEntity;
 import com.sfin.message.messagegateway.repository.entity.ShopZaloConfigEntity;
 import com.sfin.message.messagegateway.request.MessageRequest;
 import com.sfin.message.messagegateway.service.UserOAService;
+import com.sfin.message.messagegateway.utils.DaoUtils;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,9 +27,16 @@ public class UserOaController {
 
 
     @GetMapping
-    public ResponseEntity getUserOfOA(@RequestParam Long shopId){
-        ShopZaloConfigEntity shopZaloConfig = shopZaloConfigDao.findOneByShopId(shopId);
-        return ResponseFactory.success(userOAService.getUserOfOa(shopZaloConfig, 0, 50));
+    public ResponseEntity getUserOfOA(@RequestParam Long shopId
+            , @RequestParam(value = "keyword", defaultValue = "", required = false) String keyword
+            , @RequestParam(value = "beginDate", required = false) Long begin
+            , @RequestParam(value = "endDate", required = false) Long end
+            , @RequestParam(value = "page", defaultValue = "0", required = false) Integer page
+            , @RequestParam(value = "pageSize", defaultValue = "20", required = false) Integer pageSize
+            , @RequestParam(value = "orderBy", defaultValue = "createdDate", required = false) String orderBy
+            , @RequestParam(value = "direction", defaultValue = "DESC", required = false) String direction){
+        Pageable pageable = DaoUtils.buildPageable(page, pageSize, orderBy, direction);
+        return userOAService.getUserOfShop(keyword,shopId, begin, end, pageable);
     }
 
 //    @GetMapping("/profiles")
@@ -44,7 +54,7 @@ public class UserOaController {
     @GetMapping("/chats/user")
     public ResponseEntity getChatOfShop(@RequestParam Long shopId, @RequestParam String userId){
         log.info("get all conversation of shop {} userID {} ", shopId, userId);
-        return ResponseFactory.success(userOAService.getAllConversationOfUser(shopId, userId));
+        return userOAService.getAllConversationOfUser(shopId, userId);
     }
 
     @PostMapping("/chats/user")

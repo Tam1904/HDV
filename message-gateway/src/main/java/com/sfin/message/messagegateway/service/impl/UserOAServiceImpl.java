@@ -61,26 +61,17 @@ public class UserOAServiceImpl implements UserOAService {
             throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
         HttpHeaders headers = forwardService.buildHeaders(zaloConfig.getAccessToken(), MediaType.APPLICATION_JSON);
         ResponseEntity response = forwardService.forward(zaloOAProperty.getInfoUrl(), "", HttpMethod.GET, null, headers);
-        try {
-            String data = (String) response.getBody();
-            log.info("oa info response : {}", data);
-            JSONObject jsonObject = new JSONObject(data);
-            if (jsonObject.has("error")) {
-                Integer error = jsonObject.getInt("error");
-                if (error == 0) {
-                    OaInfoResponse oaInfoResponse = objectMapper.readValue(jsonObject.toString(), new TypeReference<OaInfoResponse>() {
-                    });
-                    return oaInfoResponse;
-                } else {
-                    ErrorResponse errorResponse = objectMapper.readValue(jsonObject.toString(), new TypeReference<ErrorResponse>() {
-                    });
-                    Map<String, Object> extraData = new HashMap<>();
-                    extraData.put("error", errorResponse);
-                    throw new CoreException(CoreErrorCode.BAD_REQUEST, extraData);
-                }
+        String data = (String) response.getBody();
+        log.info("oa info response : {}", data);
+        JSONObject jsonObject = new JSONObject(data);
+        if (jsonObject.has("error")) {
+            Integer error = jsonObject.getInt("error");
+            if (error == 0) {
+                OaInfoResponse oaInfoResponse = JsonUtils.jsonToObject(jsonObject.toString(), OaInfoResponse.class);
+                return oaInfoResponse;
+            } else {
+               JsonUtils.returnErrorResponse(jsonObject.toString());
             }
-        } catch (JsonProcessingException e) {
-            log.info("error get oa info: {}", e.getMessage());
         }
         throw new CoreException(CoreErrorCode.GENERAL_ERROR);
     }
@@ -114,11 +105,7 @@ public class UserOAServiceImpl implements UserOAService {
                     }
                     return userOaInfoResponse;
                 } else {
-                    ErrorResponse errorResponse = objectMapper.readValue(jsonObject.toString(), new TypeReference<ErrorResponse>() {
-                    });
-                    Map<String, Object> extraData = new HashMap<>();
-                    extraData.put("error", errorResponse);
-                    throw new CoreException(CoreErrorCode.BAD_REQUEST, extraData);
+                    JsonUtils.returnErrorResponse(jsonObject.toString());
                 }
             }
         } catch (JsonProcessingException e) {
@@ -151,8 +138,8 @@ public class UserOAServiceImpl implements UserOAService {
     public UserProfileResponse getUserProfile(String accessToken, String userId) {
         String data = String.format("{\"user_id\" : \"%s\"}", userId);
         String endPoint = String.format(zaloOAProperty.getUserProfileUrl() + "?access_token=%s&data={data}", accessToken);
+        log.info("Forward request to [{}], method [{}]", endPoint, "GET");
         try {
-            log.info("Forward request to [{}], method [{}]", endPoint, "GET");
             ResponseEntity response = restTemplate.getForEntity(endPoint, String.class, data);
             String body = (String) response.getBody();
             log.info("user {} of oa response : {}", userId, body);
@@ -160,19 +147,15 @@ public class UserOAServiceImpl implements UserOAService {
             if (jsonObject.has("error")) {
                 Integer error = jsonObject.getInt("error");
                 if (error == 0) {
-                    UserProfileResponse userOaInfoResponse = objectMapper.readValue(jsonObject.toString(), new TypeReference<UserProfileResponse>() {
-                    });
+                    UserProfileResponse userOaInfoResponse = JsonUtils.jsonToObject(jsonObject.toString(), UserProfileResponse.class);
                     return userOaInfoResponse;
                 } else {
-                    ErrorResponse errorResponse = objectMapper.readValue(jsonObject.toString(), new TypeReference<ErrorResponse>() {
-                    });
-                    Map<String, Object> extraData = new HashMap<>();
-                    extraData.put("error", errorResponse);
-                    throw new CoreException(CoreErrorCode.BAD_REQUEST, extraData);
+                    JsonUtils.returnErrorResponse(jsonObject.toString());
                 }
             }
-        } catch (JsonProcessingException e) {
-            log.info("error user profile {} of oa: {}", userId, e.getMessage());
+        }
+        catch (Exception e){
+            log.info("error connect to {}", zaloOAProperty.getUserProfileUrl());
         }
         throw new CoreException(CoreErrorCode.GENERAL_ERROR);
     }
@@ -206,7 +189,6 @@ public class UserOAServiceImpl implements UserOAService {
             throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
         String data = String.format("{\"offset\":\"%d\",\"count\":\"%d\"}", offset, count);
         String endPoint = String.format(zaloOAProperty.getUserListrecentchatUrl() + "?access_token=%s&data={data}", shopZaloConfig.getAccessToken());
-
         try {
             log.info("Forward request to [{}], method [{}]", endPoint, "GET");
             ResponseEntity response = restTemplate.getForEntity(endPoint, String.class, data);
@@ -216,19 +198,15 @@ public class UserOAServiceImpl implements UserOAService {
             if (jsonObject.has("error")) {
                 Integer error = jsonObject.getInt("error");
                 if (error == 0) {
-                    ShopChatResponse chatResponse = objectMapper.readValue(jsonObject.toString(), new TypeReference<ShopChatResponse>() {
-                    });
+                    ShopChatResponse chatResponse = JsonUtils.jsonToObject(jsonObject.toString(), ShopChatResponse.class);
                     return chatResponse;
                 } else {
-                    ErrorResponse errorResponse = objectMapper.readValue(jsonObject.toString(), new TypeReference<ErrorResponse>() {
-                    });
-                    Map<String, Object> extraData = new HashMap<>();
-                    extraData.put("error", errorResponse);
-                    throw new CoreException(CoreErrorCode.BAD_REQUEST, extraData);
+                   JsonUtils.returnErrorResponse(jsonObject.toString());
                 }
             }
-        } catch (JsonProcessingException e) {
-            log.info("error chat user {} of oa: {}", e.getMessage());
+        }
+        catch (Exception e){
+            log.info("error connect to {} : message {}", endPoint, e.getMessage());
         }
         throw new CoreException(CoreErrorCode.GENERAL_ERROR);
     }
@@ -255,8 +233,9 @@ public class UserOAServiceImpl implements UserOAService {
     public ShopChatResponse getConversationOfUser(String accessToken, String userId, Integer offset, Integer count) {
         String data = String.format("{\"user_id\":\"%s\",\"offset\": \"%d\",\"count\":\"%d\"}", userId, offset, count);
         String endPoint = String.format(zaloOAProperty.getUserConversationUrl() + "?access_token=%s&data={data}", accessToken);
+        log.info("Forward request to [{}], method [{}]", endPoint, "GET");
         try {
-            log.info("Forward request to [{}], method [{}]", endPoint, "GET");
+
             ResponseEntity response = restTemplate.getForEntity(endPoint, String.class, data);
             String body = (String) response.getBody();
             log.info("response body get conversation  of userId {} : {}", userId, body);
@@ -264,19 +243,15 @@ public class UserOAServiceImpl implements UserOAService {
             if (jsonObject.has("error")) {
                 Integer error = jsonObject.getInt("error");
                 if (error == 0) {
-                    ShopChatResponse chatResponse = objectMapper.readValue(jsonObject.toString(), new TypeReference<ShopChatResponse>() {
-                    });
+                    ShopChatResponse chatResponse = JsonUtils.jsonToObject(jsonObject.toString(), ShopChatResponse.class);
                     return chatResponse;
                 } else {
-                    ErrorResponse errorResponse = objectMapper.readValue(jsonObject.toString(), new TypeReference<ErrorResponse>() {
-                    });
-                    Map<String, Object> extraData = new HashMap<>();
-                    extraData.put("error", errorResponse);
-                    throw new CoreException(CoreErrorCode.BAD_REQUEST, extraData);
+                    JsonUtils.returnErrorResponse(jsonObject.toString());
                 }
             }
-        } catch (JsonProcessingException e) {
-            log.info("error get conversation of user {} of oa: {}", e.getMessage());
+        }
+        catch (Exception e){
+            log.info("error connect {} message {}", endPoint, e.getMessage());
         }
         throw new CoreException(CoreErrorCode.GENERAL_ERROR);
     }
@@ -315,7 +290,7 @@ public class UserOAServiceImpl implements UserOAService {
         if (jsonObject.has("error")) {
             Integer error = jsonObject.getInt("error");
             if (error == 0) {
-                SendMessageResponse sendMessageResponse = JsonUtils.jsonToObject(jsonObject.toString(), SendMessageResponse.class).get();
+                SendMessageResponse sendMessageResponse = JsonUtils.jsonToObject(jsonObject.toString(), SendMessageResponse.class);
                 return ResponseFactory.success(sendMessageResponse);
             } else {
                 JsonUtils.returnErrorResponse(jsonObject.toString());

@@ -24,6 +24,7 @@ import com.sfin.message.messagegateway.response.error.ErrorResponse;
 import com.sfin.message.messagegateway.service.ForwardService;
 import com.sfin.message.messagegateway.service.ShopZaloService;
 import com.sfin.message.messagegateway.service.ZaloService;
+import com.sfin.message.messagegateway.utils.JsonUtils;
 import lombok.extern.log4j.Log4j2;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,8 +51,6 @@ public class ShopZaloServiceImpl implements ShopZaloService {
     @Autowired
     private ZaloOAProperty zaloOAProperty;
     @Autowired
-    private ObjectMapper objectMapper;
-    @Autowired
     private ForwardService forwardService;
     @Autowired
     private ZaloService zaloService;
@@ -64,41 +63,35 @@ public class ShopZaloServiceImpl implements ShopZaloService {
 
     @Override
     public ResponseEntity getShopTemplateRegister(Long shopId, Integer status, Integer limit) {
-        String path ;
-        if(status == null)
+        String path;
+        if (status == null)
             path = String.format(TEMPLATE_PATH, 0, limit);
         else
             path = String.format(TEMPLATE_PATH + "&status=%s", 0, limit, status);
-        ShopZaloConfigEntity zaloConfig = shopZaloConfigDao.findById(shopId).orElseThrow(() -> new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS));
+        ShopZaloConfigEntity zaloConfig = shopZaloConfigDao.findOneByShopId(shopId);
+        if (zaloConfig == null)
+            throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
         HttpHeaders headers = forwardService.buildHeaders(zaloConfig.getAccessToken(), MediaType.APPLICATION_JSON);
         ResponseEntity response = forwardService.forward(zaloOAProperty.getTemplateUrl(), path, HttpMethod.GET, null, headers);
-        if(response.getStatusCode().is2xxSuccessful()){
-            try {
-                String body = (String) response.getBody();
-                log.info("template response :{}", body);
-                JSONObject jsonObject = new JSONObject(body);
-                if(jsonObject.has("error")){
-                    Integer error = jsonObject.getInt("error");
-                    if(error ==0){
-                        ShopTemplateResponse templateResponse = objectMapper.readValue(jsonObject.toString(), new TypeReference<ShopTemplateResponse>() {
-                        });
-                        for (DataTemplate template : templateResponse.getData()){
-                            TemplateDetailResponse templateDetail = zaloService.getDetailTemplate(template.getTemplateId(), shopId);
-                            if(templateDetail.getError() ==0)
-                                template.setDetailResponse(templateDetail);
-                            else
-                                throw new CoreException(CoreErrorCode.BAD_REQUEST, templateDetail.getMessage());
-                        }
-                        return ResponseFactory.success(templateResponse);
-                    }
-                    else {
-                        ErrorResponse errorResponse = objectMapper.readValue(jsonObject.toString(), new TypeReference<ErrorResponse>() {
-                        });
-                        return ResponseFactory.success(errorResponse);
-                    }
+        if (response.getStatusCode().is2xxSuccessful()) {
+            String body = (String) response.getBody();
+            log.info("template response :{}", body);
+            JSONObject jsonObject = new JSONObject(body);
+            if (jsonObject.has("error")) {
+                Integer error = jsonObject.getInt("error");
+                if (error == 0) {
+                    ShopTemplateResponse templateResponse = JsonUtils.jsonToObject(jsonObject.toString(), ShopTemplateResponse.class);
+//                        for (DataTemplate template : templateResponse.getData()){
+//                            TemplateDetailResponse templateDetail = zaloService.getDetailTemplate(template.getTemplateId(), shopId);
+//                            if(templateDetail.getError() ==0)
+//                                template.setDetailResponse(templateDetail);
+//                            else
+//                                throw new CoreException(CoreErrorCode.BAD_REQUEST, templateDetail.getMessage());
+//                        }
+                    return ResponseFactory.success(templateResponse);
+                } else {
+                    JsonUtils.returnErrorResponse(jsonObject.toString());
                 }
-            } catch (JsonProcessingException e) {
-                log.info("error : {}", e.getMessage());
             }
         }
         throw new CoreException(CoreErrorCode.GENERAL_ERROR);
@@ -106,35 +99,23 @@ public class ShopZaloServiceImpl implements ShopZaloService {
 
     @Override
     @Transactional
-    public ResponseEntity createShopTemplate(Long shopId, TemplateShopRequest templateShopRequest){
+    public ResponseEntity createShopTemplate(Long shopId, List<ShopTemplateRequest> shopTemplateRequests) {
         List<ShopTemplatesEntity> response = new ArrayList<>();
-        for(ShopTemplateRequest request : templateShopRequest.getShopTemplate()){
-            ShopTemplatesEntity shopTemplate = shopTemplatesDao.findByShopIdAndTemplateId(shopId, request.getTemplateId());
-            if(shopTemplate != null)
-                throw new CoreException(CoreErrorCode.ENTITY_EXISTED);
-            shopTemplate = new ShopTemplatesEntity();
-            shopTemplate.setShopId(shopId);
-            AppUtils.copyPropertiesIgnoreNull(request, shopTemplate);
-            TemplateDetailResponse detailTemplate = zaloService.getDetailTemplate(request.getTemplateId(), shopId);
-            if(detailTemplate.getError()!= 0)
-                throw new CoreException(CoreErrorCode.BAD_REQUEST, detailTemplate.getMessage());
-            AppUtils.copyPropertiesIgnoreNull(detailTemplate.getData(), shopTemplate);
-            shopTemplate.setPrice(Float.parseFloat(detailTemplate.getData().getPrice()));
-            for(TemplateParams templateData : detailTemplate.getData().getListParams()){
-                ZnsTemplateDetailEntity znsTemplateDetailEntity = new ZnsTemplateDetailEntity();
-                znsTemplateDetailEntity.setTemplateId(request.getTemplateId());
-                AppUtils.copyPropertiesIgnoreNull(templateData, znsTemplateDetailEntity);
-                znsTemplateDetailEntity.setCreatedDate(new Date());
-                znsTemplateDetailDao.save(znsTemplateDetailEntity);
+        for (ShopTemplateRequest request : shopTemplateRequests) {
+            if(request.getTemplateId() == null)
+                throw new CoreException(CoreErrorCode.BAD_REQUEST, "TemplateId không được rỗng");
+            ShopTemplatesEntity shopTemplate = shopTemplatesDao.findByShopIdAndType(shopId, request.getType());
+            if(shopTemplate == null){
+                shopTemplate = new ShopTemplatesEntity();
+                shopTemplate.setCreatedDate(new Date());
             }
-            shopTemplate.setCreatedDate(new Date());
-            response.add(shopTemplatesDao.save(shopTemplate));
+            response.add(saveShopTemplate(shopTemplate, request, shopId));
         }
         return ResponseFactory.success(response);
     }
 
     @Override
-    public ResponseEntity getTemplateOfShop(Long shopId, String keyword, Long begin, Long end, Boolean active, ShopTemplatesEntity.Type type, Pageable pageable){
+    public ResponseEntity getTemplateOfShop(Long shopId, String keyword, Long begin, Long end, Boolean active, ShopTemplatesEntity.Type type, Pageable pageable) {
         Page<ShopTemplatesEntity> responses = shopTemplatesDao.findAll(makeQueryShopTemplate(keyword, shopId, begin, end, active, type), pageable).map(o -> {
             List<ZnsTemplateDetailEntity> details = znsTemplateDetailDao.findByTemplateId(o.getTemplateId());
             o.setTemplateDetails(details);
@@ -144,37 +125,13 @@ public class ShopZaloServiceImpl implements ShopZaloService {
     }
 
     @Override
-    public ResponseEntity getTemplateDetailOfShop(Long shopTemplateId){
-        ShopTemplatesEntity shopTemplate = shopTemplatesDao.findById(shopTemplateId).orElseThrow(() -> new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS));
-        if(shopTemplate == null)
+    public ResponseEntity getTemplateDetailOfShop(Long shopId, Integer templateId) {
+        ShopTemplatesEntity shopTemplate = shopTemplatesDao.findByShopIdAndTemplateId(shopId, templateId);
+        if (shopTemplate == null)
             throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
         List<ZnsTemplateDetailEntity> znsTemplateDetails = znsTemplateDetailDao.findByTemplateId(shopTemplate.getTemplateId());
         shopTemplate.setTemplateDetails(znsTemplateDetails);
         return ResponseFactory.success(shopTemplate);
-    }
-
-
-    @Override
-    public ResponseEntity updateTemplateShop(Long shopTemplateId, UpdateShopTemplateRequest request){
-            ShopTemplatesEntity shopTemplate = shopTemplatesDao.findById(shopTemplateId).orElseThrow(() -> new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS));
-            AppUtils.copyPropertiesIgnoreNull(request, shopTemplate);
-            TemplateDetailResponse detailTemplate = zaloService.getDetailTemplate(shopTemplate.getTemplateId(), shopTemplate.getShopId());
-            if(detailTemplate.getError()==0){
-                AppUtils.copyPropertiesIgnoreNull(detailTemplate.getData(), shopTemplate);
-                shopTemplate.setPrice(Float.parseFloat(detailTemplate.getData().getPrice()));
-                List<ZnsTemplateDetailEntity> znsTemplateDetails = znsTemplateDetailDao.findByTemplateId(shopTemplate.getTemplateId());
-                znsTemplateDetailDao.deleteAll(znsTemplateDetails);
-                for(TemplateParams templateData : detailTemplate.getData().getListParams()){
-                    ZnsTemplateDetailEntity znsTemplateDetail = new ZnsTemplateDetailEntity();
-                    znsTemplateDetail.setTemplateId(shopTemplate.getTemplateId());
-                    AppUtils.copyPropertiesIgnoreNull(templateData, znsTemplateDetail);
-                    znsTemplateDetail.setCreatedDate(new Date(System.currentTimeMillis()));
-                    znsTemplateDetailDao.save(znsTemplateDetail);
-                }
-                return ResponseFactory.success(shopTemplatesDao.save(shopTemplate));
-            }
-
-            throw new CoreException(CoreErrorCode.BAD_REQUEST, detailTemplate.getMessage());
     }
 
 
@@ -186,19 +143,19 @@ public class ShopZaloServiceImpl implements ShopZaloService {
     }
 
     @Override
-    public ResponseEntity getHistorySendMessageZns(String keyword, Long begin, Long end, Long shopId, Integer templateId, Integer error, Pageable pageable){
+    public ResponseEntity getHistorySendMessageZns(String keyword, Long begin, Long end, Long shopId, Integer templateId, Integer error, Pageable pageable) {
         Page<HistorySendMessageEntity> response = historySendMessageDao.findAll(makeQueryHistory(keyword, begin, end, shopId, templateId, error), pageable);
         List<HistorySendMessageEntity> histories = historySendMessageDao.findAll(makeQueryHistory(keyword, begin, end, shopId, templateId, null));
-        Map<String , Object> extraData = new HashMap<>();
+        Map<String, Object> extraData = new HashMap<>();
         Float price = 0F;
-        Integer success = 0, unSuccess =0;
-        for(HistorySendMessageEntity entity : histories){
-            if(price!= null)
+        Integer success = 0, unSuccess = 0;
+        for (HistorySendMessageEntity entity : histories) {
+            if (price != null)
                 price += entity.getPrice();
-            if(entity.getError()!= null && entity.getError()==0)
-                success +=1;
-            else if(entity.getError()!= null && entity.getError() != 0)
-                unSuccess +=1;
+            if (entity.getError() != null && entity.getError() == 0)
+                success += 1;
+            else if (entity.getError() != null && entity.getError() != 0)
+                unSuccess += 1;
         }
         extraData.put("price", price);
         extraData.put("success", success);
@@ -206,35 +163,54 @@ public class ShopZaloServiceImpl implements ShopZaloService {
         return ResponseFactory.makePaginationResponse(response, extraData);
     }
 
-    Specification<HistorySendMessageEntity> makeQueryHistory(String keyword, Long begin, Long end, Long shopId, Integer templateId, Integer error){
+    Specification<HistorySendMessageEntity> makeQueryHistory(String keyword, Long begin, Long end, Long shopId, Integer templateId, Integer error) {
         Specification<HistorySendMessageEntity> specification = Specification.where(null);
         String kw = "%" + keyword + "%";
         specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.like(root.get(HistorySendMessageEntity.HistorySendMessage_.TEMPLATE_NAME), kw)));
-        if(begin != null && end != null)
+        if (begin != null && end != null)
             specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.between(root.get(HistorySendMessageEntity.HistorySendMessage_.SEND_TIME), new Date(begin), new Date(end))));
-        if(shopId != null)
+        if (shopId != null)
             specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(HistorySendMessageEntity.HistorySendMessage_.SHOP_ID), shopId)));
-        if(templateId != null)
+        if (templateId != null)
             specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(HistorySendMessageEntity.HistorySendMessage_.TEMPLATE_ID), templateId)));
-        if(error != null && error == 0)
+        if (error != null && error == 0)
             specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(HistorySendMessageEntity.HistorySendMessage_.ERROR), 0)));
-        else if(error != null && error != 0)
-            specification = specification.and(((root, query, criteriaBuilder) ->  criteriaBuilder.notEqual(root.get(HistorySendMessageEntity.HistorySendMessage_.ERROR), 0)));
+        else if (error != null && error != 0)
+            specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.notEqual(root.get(HistorySendMessageEntity.HistorySendMessage_.ERROR), 0)));
         return specification;
     }
 
-    Specification<ShopTemplatesEntity> makeQueryShopTemplate(String keyword, Long shopId, Long begin, Long end, Boolean active, ShopTemplatesEntity.Type type){
+    Specification<ShopTemplatesEntity> makeQueryShopTemplate(String keyword, Long shopId, Long begin, Long end, Boolean active, ShopTemplatesEntity.Type type) {
         String kw = "%" + keyword + "%";
         Specification<ShopTemplatesEntity> specification = Specification.where(null);
         specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.like(root.get(ShopTemplatesEntity.ShopTemplate_.TEMPLATE_NAME), kw)));
-        if(begin != null && end != null)
+        if (begin != null && end != null)
             specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.between(root.get(ShopTemplatesEntity.ShopTemplate_.CREATE_DATE), new Date(begin), new Date(end))));
-        if(shopId!= null)
+        if (shopId != null)
             specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(ShopTemplatesEntity.ShopTemplate_.SHOP_ID), shopId)));
-        if(active != null)
+        if (active != null)
             specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(ShopTemplatesEntity.ShopTemplate_.ACTIVE), active)));
-        if(type != null)
+        if (type != null)
             specification = specification.and(((root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(ShopTemplatesEntity.ShopTemplate_.TYPE), type)));
         return specification;
+    }
+
+    private ShopTemplatesEntity saveShopTemplate(ShopTemplatesEntity shopTemplate, ShopTemplateRequest request, Long shopId){
+        AppUtils.copyPropertiesIgnoreNull(request, shopTemplate);
+        TemplateDetailResponse detailTemplate = zaloService.getDetailTemplate(request.getTemplateId(), shopId);
+        if (detailTemplate.getError() != 0)
+            throw new CoreException(CoreErrorCode.BAD_REQUEST, detailTemplate.getMessage());
+        AppUtils.copyPropertiesIgnoreNull(detailTemplate.getData(), shopTemplate);
+        shopTemplate.setPrice(Float.parseFloat(detailTemplate.getData().getPrice()));
+        List<ZnsTemplateDetailEntity> znsTemplateDetails = znsTemplateDetailDao.findByTemplateId(shopTemplate.getTemplateId());
+        znsTemplateDetailDao.deleteAll(znsTemplateDetails);
+        for (TemplateParams templateData : detailTemplate.getData().getListParams()) {
+            ZnsTemplateDetailEntity znsTemplateDetailEntity = new ZnsTemplateDetailEntity();
+            znsTemplateDetailEntity.setTemplateId(request.getTemplateId());
+            AppUtils.copyPropertiesIgnoreNull(templateData, znsTemplateDetailEntity);
+            znsTemplateDetailEntity.setCreatedDate(new Date());
+            znsTemplateDetailDao.save(znsTemplateDetailEntity);
+        };
+        return shopTemplatesDao.save(shopTemplate);
     }
 }

@@ -21,16 +21,16 @@ public class JsonUtils {
     private static final ObjectMapper objectMapper = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-    public static <R> Optional<R> jsonToObject(String jsonString, Class<R> returnClass) {
+    public static <R> R jsonToObject(String jsonString, Class<R> returnClass) {
         try {
-            return Optional.of(objectMapper.readValue(jsonString, returnClass));
+            return objectMapper.readValue(jsonString, returnClass);
         } catch (IOException e) {
             throw new CoreException(CoreErrorCode.GENERAL_ERROR, e.getMessage());
         }
     }
 
     public static void returnErrorResponse(String json) {
-        ErrorResponse errorResponse = jsonToObject(json, ErrorResponse.class).get();
+        ErrorResponse errorResponse = jsonToObject(json, ErrorResponse.class);
         Map<String, Object> extraData = new HashMap<>();
         extraData.put("error", errorResponse);
         throw new CoreException(CoreErrorCode.BAD_REQUEST, extraData);
