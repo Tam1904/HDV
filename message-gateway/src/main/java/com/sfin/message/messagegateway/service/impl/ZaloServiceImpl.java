@@ -10,10 +10,7 @@ import com.sfin.message.messagegateway.exception.CoreErrorCode;
 import com.sfin.message.messagegateway.exception.CoreException;
 import com.sfin.message.messagegateway.properties.ZaloOAProperty;
 import com.sfin.message.messagegateway.repository.*;
-import com.sfin.message.messagegateway.repository.entity.HistorySendMessageEntity;
-import com.sfin.message.messagegateway.repository.entity.ShopTemplatesEntity;
-import com.sfin.message.messagegateway.repository.entity.ShopZaloConfigEntity;
-import com.sfin.message.messagegateway.repository.entity.ZnsTemplateDetailEntity;
+import com.sfin.message.messagegateway.repository.entity.*;
 import com.sfin.message.messagegateway.request.*;
 import com.sfin.message.messagegateway.response.AccessTokenResponse;
 import com.sfin.message.messagegateway.response.OaInfoResponse;
@@ -63,6 +60,8 @@ public class ZaloServiceImpl implements ZaloService {
     private ZnsTemplateDetailDao znsTemplateDetailDao;
     @Autowired
     private UserOAService userOAService;
+    @Autowired
+    private MessageDetailParamDao messageDetailParamDao;
 
     private String AUTHORIZATION_CODE = "authorization_code";
     private String REFRESH_TOKEN = "refresh_token";
@@ -249,14 +248,25 @@ public class ZaloServiceImpl implements ZaloService {
         json.put("phone", phone);
         json.put("mode", "development");
         json.put("template_id", request.getData().get("template_id"));
-        json.put("tracking_id", RandomStringUtils.randomAlphabetic(20) + System.currentTimeMillis());
+        String trackingId = RandomStringUtils.randomAlphabetic(20) + System.currentTimeMillis();
+        json.put("tracking_id", trackingId);
         ShopTemplatesEntity shopTemplate = shopTemplatesDao.findByShopIdAndTemplateId(shopId, templateId);
         if (shopTemplate == null)
             throw new CoreException(CoreErrorCode.ENTITY_NOT_EXISTS);
         List<ZnsTemplateDetailEntity> templateDetails = znsTemplateDetailDao.findByTemplateId(templateId);
         Map<String, Object> objectMap = new HashMap<>();
-        for (ZnsTemplateDetailEntity param : templateDetails)
+        List<MessageDetailParamEntity> messageDetailParams = new ArrayList<>();
+        for (ZnsTemplateDetailEntity param : templateDetails){
             objectMap.put(param.getName(), request.getData().getOrDefault(param.getName(), ""));
+            MessageDetailParamEntity entity = MessageDetailParamEntity.builder()
+                    .createdDate(new Date())
+                    .paramName(param.getName())
+                    .templateId(templateId)
+                    .paramValue(String.valueOf(request.getData().getOrDefault(param.getName(), "")))
+                    .parmaType(param.getType())
+                    .build();
+            messageDetailParams.add(entity);
+        }
         json.put("template_data", objectMap);
         log.info("send message with templateId {} and body {}", templateId, json);
 
@@ -270,6 +280,7 @@ public class ZaloServiceImpl implements ZaloService {
                 historySendMessageEntity.setShopId(shopId);
                 historySendMessageEntity.setTemplateId(templateId);
                 historySendMessageEntity.setBody(json.toString());
+                historySendMessageEntity.setResponse(data);
                 Integer error = jsonObject.getInt("error");
                 if (error == 0) {
                     SendMessageZNSResponse znsResponse = JsonUtils.jsonToObject(jsonObject.toString(), SendMessageZNSResponse.class);
@@ -277,6 +288,8 @@ public class ZaloServiceImpl implements ZaloService {
                     AppUtils.copyPropertiesIgnoreNull(znsResponse.getData(), historySendMessageEntity);
                     AppUtils.copyPropertiesIgnoreNull(znsResponse.getData().getQuota(), historySendMessageEntity);
                     AppUtils.copyPropertiesIgnoreNull(shopTemplate, historySendMessageEntity);
+                    historySendMessageEntity.setTrackingId(trackingId);
+                    historySendMessageEntity.setPhone(phone);
                     historySendMessageEntity.setPrice(shopTemplate.getPrice());
                 } else {
                     ErrorResponse templateDetailError = objectMapper.readValue(data, new TypeReference<ErrorResponse>() {
@@ -286,7 +299,12 @@ public class ZaloServiceImpl implements ZaloService {
                     historySendMessageEntity.setSendTime(new Date());
                 }
                 log.info("save history send zns with msg_id {}", historySendMessageEntity.getMsgId());
-                historySendMessageDao.save(historySendMessageEntity);
+                HistorySendMessageEntity entity = historySendMessageDao.save(historySendMessageEntity);
+                messageDetailParams.forEach(o -> {
+                    o.setHistoryMessageId(entity.getId());
+                    o.setMsgId(entity.getMsgId());
+                    messageDetailParamDao.save(o);
+                });
             }
         } catch (Exception ex) {
             log.info("error send message {}", ex.getMessage());

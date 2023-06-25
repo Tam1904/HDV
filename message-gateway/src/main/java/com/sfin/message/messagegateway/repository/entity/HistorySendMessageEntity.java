@@ -6,6 +6,7 @@ import javax.persistence.*;
 import javax.persistence.metamodel.StaticMetamodel;
 import java.io.Serializable;
 import java.util.Date;
+import java.util.List;
 
 @Data
 @Entity
@@ -63,6 +64,18 @@ public class HistorySendMessageEntity implements Serializable {
 
     @Column(name = "type")
     private String type;
+
+    @Column(name = "tracking_id")
+    private String trackingId;
+
+    @Column(name = "phone")
+    private String phone;
+
+    @Column(name = "response")
+    private String response;
+
+    @Transient
+    private List<MessageDetailParamEntity> params;
 
     @StaticMetamodel(HistorySendMessageEntity.class)
     public abstract class HistorySendMessage_ {

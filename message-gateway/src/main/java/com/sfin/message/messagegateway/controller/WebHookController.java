@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/webhook")
 @Log4j2
-public class WebHookService {
+public class WebHookController {
 
 
 }

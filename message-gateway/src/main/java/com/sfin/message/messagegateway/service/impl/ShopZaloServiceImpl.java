@@ -1,26 +1,14 @@
 package com.sfin.message.messagegateway.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sfin.eplaform.commons.response.ResponseFactory;
 import com.sfin.eplaform.commons.utils.AppUtils;
 import com.sfin.message.messagegateway.exception.CoreErrorCode;
 import com.sfin.message.messagegateway.exception.CoreException;
 import com.sfin.message.messagegateway.properties.ZaloOAProperty;
-import com.sfin.message.messagegateway.repository.HistorySendMessageDao;
-import com.sfin.message.messagegateway.repository.ShopTemplatesDao;
-import com.sfin.message.messagegateway.repository.ShopZaloConfigDao;
-import com.sfin.message.messagegateway.repository.ZnsTemplateDetailDao;
-import com.sfin.message.messagegateway.repository.entity.HistorySendMessageEntity;
-import com.sfin.message.messagegateway.repository.entity.ShopTemplatesEntity;
-import com.sfin.message.messagegateway.repository.entity.ShopZaloConfigEntity;
-import com.sfin.message.messagegateway.repository.entity.ZnsTemplateDetailEntity;
+import com.sfin.message.messagegateway.repository.*;
+import com.sfin.message.messagegateway.repository.entity.*;
 import com.sfin.message.messagegateway.request.ShopTemplateRequest;
-import com.sfin.message.messagegateway.request.TemplateShopRequest;
-import com.sfin.message.messagegateway.request.UpdateShopTemplateRequest;
 import com.sfin.message.messagegateway.response.*;
-import com.sfin.message.messagegateway.response.error.ErrorResponse;
 import com.sfin.message.messagegateway.service.ForwardService;
 import com.sfin.message.messagegateway.service.ShopZaloService;
 import com.sfin.message.messagegateway.service.ZaloService;
@@ -58,6 +46,8 @@ public class ShopZaloServiceImpl implements ShopZaloService {
     private ZnsTemplateDetailDao znsTemplateDetailDao;
     @Autowired
     private HistorySendMessageDao historySendMessageDao;
+    @Autowired
+    private MessageDetailParamDao messageDetailParamDao;
 
     private String TEMPLATE_PATH = "?offset=%s&limit=%s";
 
@@ -144,7 +134,11 @@ public class ShopZaloServiceImpl implements ShopZaloService {
 
     @Override
     public ResponseEntity getHistorySendMessageZns(String keyword, Long begin, Long end, Long shopId, Integer templateId, Integer error, Pageable pageable) {
-        Page<HistorySendMessageEntity> response = historySendMessageDao.findAll(makeQueryHistory(keyword, begin, end, shopId, templateId, error), pageable);
+        Page<HistorySendMessageEntity> response = historySendMessageDao.findAll(makeQueryHistory(keyword, begin, end, shopId, templateId, error), pageable).map(o -> {
+            List<MessageDetailParamEntity> params = messageDetailParamDao.findByHistoryMessageId(o.getId());
+            o.setParams(params);
+            return o;
+        }) ;
         List<HistorySendMessageEntity> histories = historySendMessageDao.findAll(makeQueryHistory(keyword, begin, end, shopId, templateId, null));
         Map<String, Object> extraData = new HashMap<>();
         Float price = 0F;

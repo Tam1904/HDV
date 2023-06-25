@@ -1,6 +1,9 @@
 package com.sfin.message.messagegateway.repository.entity;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -9,6 +12,9 @@ import java.util.Date;
 @Data
 @Entity
 @Table(name = "MESSAGE_DETAIL_PARAM")
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class MessageDetailParamEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -31,7 +37,7 @@ public class MessageDetailParamEntity implements Serializable {
     private String paramValue;
 
     @Column(name = "template_id")
-    private String templateId;
+    private Integer templateId;
 
     @Column(name = "parma_type")
     private String parmaType;
