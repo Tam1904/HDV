@@ -299,6 +299,7 @@ public class ZaloServiceImpl implements ZaloService {
                     historySendMessageEntity.setSendTime(new Date());
                 }
                 log.info("save history send zns with msg_id {}", historySendMessageEntity.getMsgId());
+                historySendMessageEntity.setId(null);
                 HistorySendMessageEntity entity = historySendMessageDao.save(historySendMessageEntity);
                 messageDetailParams.forEach(o -> {
                     o.setHistoryMessageId(entity.getId());
